@@ -94,7 +94,7 @@ ifneq ($(CHECK),1)
 CFLAGS_CHECK += -w
 endif
 
-OPTFLAGS := -O1
+OPTFLAGS := -O2 -g2
 
 ### Sources ###
 
