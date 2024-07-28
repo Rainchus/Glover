@@ -5,3 +5,4 @@ glover.d
 build/
 asm/
 assets/
+glover.ld
