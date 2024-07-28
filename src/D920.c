@@ -2,6 +2,7 @@
 
 s32 func_8010D9B4(void);
 void func_8010D9C0(s32);
+extern volatile s32 D_801F5680;
 
 s32 func_8010C920(void) {
     s32 temp_v0;
@@ -20,15 +21,35 @@ void func_8010C988(s32* arg0, s32 arg1) {
     *arg0 = arg1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/D920", func_8010C9C0);
+s32 func_8010C9C0(u32* arg0, u32 arg1) {
+    while (IO_READ(PI_STATUS_REG) & (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY)) {}
+    return *arg0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/D920", func_8010C9FC);
+void func_8010C9FC(s32 arg0) {
+    for (D_801F5680 = 0; D_801F5680 < arg0; D_801F5680++) {}
+}
 
-INCLUDE_ASM("asm/nonmatchings/D920", func_8010CA44);
+u8 func_8010CA44(u32* arg0, u32 arg1) { //TODO: figure this out (this has to be a pointer but does non pointer operations?)
+    u32 temp = (~(u32)arg0 & 3) << 3;
+    u32 temp2;
+
+    temp2 = func_8010C9C0((u32*)((u32)arg0 & ~0x3), arg1);
+    temp2 = temp2 >> temp;
+    
+    return temp2;
+}
 
 INCLUDE_ASM("asm/nonmatchings/D920", func_8010CA84);
 
-INCLUDE_ASM("asm/nonmatchings/D920", func_8010CB60);
+void func_8010CB60(u32* arg0, u32 arg1) { //TODO: figure this out
+    u32* temp_a0;
+    u32 temp_a2;
+
+    temp_a2 = (~(u32)arg0 & 3) << 3;
+    temp_a0 = (u32*) ((u32)arg0 & ~3);
+    *temp_a0 = ((*temp_a0 & ~(0xFF << temp_a2)) | ((arg1 & 0xFF) << temp_a2));
+}
 
 INCLUDE_ASM("asm/nonmatchings/D920", func_8010CB9C);
 
