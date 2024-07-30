@@ -77,21 +77,23 @@ INCLUDE_ASM("asm/nonmatchings/D920", func_8010D104);
 
 INCLUDE_ASM("asm/nonmatchings/D920", func_8010D170);
 
-void func_8010D39C(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
-    func_8010C988(UNK_KSEG1_2, arg1);
-    func_8010C988(UNK_KSEG1_3, arg2);
-    func_8010C988(UNK_KSEG1_4, arg3);
-    func_8010C988(UNK_KSEG1_1, arg0);
-    do {
-        func_8010C9FC(1000);
-        if (func_8010C9C0(UNK_KSEG1_5) != 0) {
-            func_8010C988(UNK_KSEG1_1, 0);
-            __asm__("break 0x1"); //__asm__("break 0x400"); (matches when SN64 compiler is used (currently using wrong compiler, kmc gcc))
-            func_8010C988(UNK_KSEG1_1, arg0);
-        }
-    } while (func_8010C9C0(UNK_KSEG1_1) != 0);
-    func_8010C9C0(UNK_KSEG1_0);
-}
+INCLUDE_ASM("asm/nonmatchings/D920", func_8010D39C);
+
+// void func_8010D39C(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+//     func_8010C988(UNK_KSEG1_2, arg1);
+//     func_8010C988(UNK_KSEG1_3, arg2);
+//     func_8010C988(UNK_KSEG1_4, arg3);
+//     func_8010C988(UNK_KSEG1_1, arg0);
+//     do {
+//         func_8010C9FC(1000);
+//         if (func_8010C9C0(UNK_KSEG1_5) != 0) {
+//             func_8010C988(UNK_KSEG1_1, 0);
+//             __asm__("break 0x400"); //__asm__("break 0x400"); (matches when SN64 compiler is used (currently using wrong compiler, kmc gcc))
+//             func_8010C988(UNK_KSEG1_1, arg0);
+//         }
+//     } while (func_8010C9C0(UNK_KSEG1_1) != 0);
+//     func_8010C9C0(UNK_KSEG1_0);
+// }
 
 INCLUDE_ASM("asm/nonmatchings/D920", func_8010D470);
 

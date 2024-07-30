@@ -21,7 +21,7 @@ options:
 
   o_as_suffix: yes
   use_legacy_include_asm: False
-  mips_abi_float_regs: o32
+  #mips_abi_float_regs: o32
 
   asm_function_macro: glabel
   asm_jtbl_label_macro: jlabel
@@ -29,7 +29,7 @@ options:
 
   asm_inc_header: ""
 
-  section_order: [".rodata", ".text", ".data", ".bss"]
+  section_order: [".data", ".text", ".rodata", ".bss"]
   # auto_all_sections: [".data", ".rodata", ".bss"]
 
   symbol_addrs_path:
@@ -38,7 +38,7 @@ options:
     - reloc_addrs.txt
 
   # undefined_funcs_auto_path: undefined_funcs_auto.txt
-  # undefined_syms_auto_path: undefined_syms_auto.txt
+  undefined_syms_auto_path: tools/undefined_syms_auto.txt
 
   extensions_path: tools/splat_ext
 
@@ -79,7 +79,7 @@ segments:
       - [0x1040, data]
       - [0xD920, c] #8010C920
       - [0xE860, asm] #lots of hand asm here
-      - [0xD51C0, rodata] #this is not all rodata
+      - [0xD51C0, rodata]
       - { start: 0xF6680, type: bss, vram: 0x801F5680 }
 
   - type: bin
