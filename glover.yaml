@@ -1,9 +1,9 @@
 name: Glover (North America)
 sha1: 270be17b3c8da9b88a7b99c2a545b0bce16837f4
 options:
-  basename: NSUE
+  basename: NGVE
   target_path: baserom.us.z64
-  elf_path: build/NSUE.elf
+  elf_path: build/NGVE.elf
   base_path: .
   platform: n64
   compiler: GCC
@@ -13,7 +13,7 @@ options:
   build_path: build/us
   # create_asm_dependencies: True
 
-  ld_script_path: NSUE.ld
+  ld_script_path: NGVE.ld
   ld_dependencies: True
   asset_path: bin
   find_file_boundaries: True
