@@ -1,0 +1,2 @@
+WriteByteReversedEndianess = 0x8010CB60;
+seedRandomInt = 0x8014707C;

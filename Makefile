@@ -1,232 +1,167 @@
-### Build Options ###
+# Config
+VERSION ?= us
+TARGET := NGVE
 
-BASEROM      := baserom.us.z64
-TARGET       := glover
-COMPARE      ?= 1
-NON_MATCHING ?= 0
-CHECK        ?= 1
-VERBOSE      ?= 0
+BASEROM := baserom.$(VERSION).z64
+BUILD_ROOT := build
+ROM_SIZE := 0x800000
 
-# Patches
-# PATCHES_ASFLAGS := --defsym MP_SAVETYPE_PATCH=1
+RFILTER_OUT = $(foreach v,$(2),$(if $(findstring $(1),$(v)),,$(v)))
+BUILD_DIR := $(BUILD_ROOT)/$(VERSION)
+SRC_DIR := src
+ASM_DIR := asm
+BIN_DIR := bin
+LIBULTRA_DIRS := audio gu io n_audio os sched
+ROCKET_SRC_DIRS   := $(shell find $(SRC_DIR)/ -type d)
+LIBULTRA_SRC_DIRS := $(addprefix ultra/src/,$(LIBULTRA_DIRS))
+SRC_DIRS := $(ROCKET_SRC_DIRS) $(LIBULTRA_SRC_DIRS)
+ASM_DIRS := $(call RFILTER_OUT,nonmatching,$(shell find $(ASM_DIR)/ -type d))
+SRC_BUILD_DIRS := $(addprefix $(BUILD_DIR)/,$(SRC_DIRS)) # Don't search libultra dirs, but generate them for manual specifying of libultra asm files
+ASM_BUILD_DIRS := $(addprefix $(BUILD_DIR)/,$(ASM_DIRS) $(LIBULTRA_DIRS))
+BIN_BUILD_DIR := $(BUILD_DIR)/$(BIN_DIR)
+KMCGCCDIR := tools/kmc/gcc
 
-# Fail early if baserom does not exist
-ifeq ($(wildcard $(BASEROM)),)
-$(error Baserom `$(BASEROM)' not found.)
-endif
+# Files
+FILTERED_OUT_SRCS :=
+C_SRCS := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.c))
+C_SRCS := $(filter-out $(FILTERED_OUT_SRCS),$(C_SRCS))
+C_ASMS := $(addprefix $(BUILD_DIR)/, $(C_SRCS:.c=.s))
+C_OBJS := $(C_ASMS:.s=.o)
+AS_SRCS := $(wildcard $(ASM_DIR)/*.s) $(foreach dir,$(ASM_DIRS),$(wildcard $(dir)/*.s))
+AS_OBJS := $(addprefix $(BUILD_DIR)/, $(AS_SRCS:.s=.o))
+BINS := $(wildcard $(BIN_DIR)/*.bin)
+BIN_OBJS := $(addprefix $(BUILD_DIR)/, $(BINS:.bin=.o))
+OBJS := $(C_OBJS) $(AS_OBJS) $(BIN_OBJS)
+LD_SCRIPT := NSUE.ld
+Z64 := $(BUILD_DIR)/$(TARGET).z64
+ELF := $(Z64:.z64=.elf)
 
-# NON_MATCHING=1 implies COMPARE=0
-ifeq ($(NON_MATCHING),1)
-override COMPARE=0
-endif
+LIBULTRA_SRCS := $(foreach dir,$(LIBULTRA_SRC_DIRS),$(wildcard $(dir)/*.c))
+SN_SRCS := $(foreach dir,$(shell find $(SRC_DIR)/ -type d) $(shell find $(SRC_DIR)/lib/ -type d),$(wildcard $(dir)/*.c))
+SN_SRCS := $(filter-out $(FILTERED_OUT_SRCS),$(SN_SRCS))
+SN_OBJS := $(addprefix $(BUILD_DIR)/, $(SN_SRCS:.c=.o))
 
-ifeq ($(VERBOSE),0)
-V := @
-endif
-
-ifeq ($(OS),Windows_NT)
-  DETECTED_OS=windows
+# Tools
+ifeq ($(shell type mips-linux-gnu-ld >/dev/null 2>/dev/null; echo $$?), 0)
+  CROSS := mips-linux-gnu-
+else ifeq ($(shell type mips64-linux-gnu-ld >/dev/null 2>/dev/null; echo $$?), 0)
+  CROSS := mips64-linux-gnu-
 else
-  UNAME_S := $(shell uname -s)
-  ifeq ($(UNAME_S),Linux)
-    DETECTED_OS=linux
-  endif
-  ifeq ($(UNAME_S),Darwin)
-    DETECTED_OS=macos
-    MAKE=gmake
-    CPPFLAGS += -xc++
-  endif
+  CROSS := mips64-elf-
 endif
 
+CPP     := $(CROSS)cpp
+AS      := $(CROSS)gcc
+OBJCOPY := $(CROSS)objcopy
+LD      := $(CROSS)gcc
+STRIP   := $(CROSS)strip
+KMC_DIR := tools/gcc_2.7.2
+KMC_CC := $(KMC_DIR)/gcc
+KMC_AS := $(KMC_DIR)/as
+SN_DIR := tools/modern-sn64
+SN_CC := $(SN_DIR)/gcc
+SN_AS := $(SN_DIR)/modern-asn64.py
 
-### Output ###
+export N64ALIGN := ON
+export VR4300MUL := ON
 
-BUILD_DIR := build
-ROM       := $(BUILD_DIR)/$(TARGET).z64
-ELF       := $(BUILD_DIR)/$(TARGET).elf
-LD_SCRIPT := $(TARGET).ld
-LD_MAP    := $(BUILD_DIR)/$(TARGET).map
+# Flags
+CPPFLAGS := -Iinclude -Iinclude/2.0I -Iinclude/2.0I/PR -Iultra/src/audio -Iultra/src/n_audio -Iinclude/mus -DF3DEX_GBI_2 -D_FINALROM -DTARGET_N64 -DSUPPORT_NAUDIO -DN_MICRO -D_LANGUAGE_C
+CFLAGS := -G0 -mcpu=vr4300 -mips2 -fno-exceptions -funsigned-char -gdwarf \
+   -Wa,-G0,-EB,-mips3,-mabi=32,-mgp32,-march=vr4300,-mfp32,-mno-shared
+ASN64FLAGS := -q -G0
+KMC_CFLAGS := -c -G0  -mgp32 -mfp32 -mips3
+WARNFLAGS := -Wall -Werror -Wno-uninitialized
+OPTFLAGS := -O2
+ASFLAGS := -march=vr4300 -mabi=32 -mgp32 -mfp32 -mips3 -mno-abicalls -G0 -fno-pic -gdwarf -c
+LDFLAGS := -march=vr4300 -mabi=32 -mgp32 -mfp32 -mips3 -mno-abicalls -G0 -fno-pic -gdwarf -nostartfiles -Wl,-T,$(LD_SCRIPT) -Wl,-T,tools/undefined_syms.txt -Wl,--build-id=none
+BINOFLAGS := -I binary -O elf32-tradbigmips
+Z64OFLAGS := -O binary --pad-to=$(ROM_SIZE) --gap-fill=0x00
+
+MKDIR := mkdir -p
+RMDIR := rm -rf
+DIFF := diff
+
+all: check
+
+$(SRC_BUILD_DIRS) : | $(SRC_DIR)
+
+$(SRC_DIR) : | $(BUILD_DIR)
+
+$(BUILD_DIR) : | $(BUILD_ROOT)
+
+$(BUILD_ROOT) $(BUILD_DIR) $(SRC_DIR) $(SRC_BUILD_DIRS) $(ASM_BUILD_DIRS) $(BIN_BUILD_DIR) :
+	$(MKDIR) $@
+
+$(BUILD_DIR)/ultra/%.o : ultra/%.c | $(SRC_BUILD_DIRS) $(KMC_CC) $(KMC_AS)
+	export COMPILER_PATH=$(KMC_DIR) && $(KMC_CC) -D__FILE__=\"$(notdir $<)\" $(CPPFLAGS) $(KMC_CFLAGS) $(OPTFLAGS) $< -o $@
+	@$(STRIP) $@ -N $(<:.i=.c)
 
 
-### Tools ###
+# Legacy stuff in case testing with the original toolchain is needed
+# PROC_VERSION != uname -a
+# IS_WSL := $(findstring microsoft,$(PROC_VERSION)) $(findstring Microsoft,$(PROC_VERSION))
 
-PYTHON     := python3
-N64CKSUM   := $(PYTHON) tools/n64cksum.py
-SPLAT_YAML := glover.yaml
-SPLAT      := splat split $(SPLAT_YAML)
-EMULATOR   := mupen64plus
-DIFF       := diff
+# ifneq ($(strip $(IS_WSL)),)
+# CC1N64 := ./sn/cc1n64.exe
+# ASN64 := ./sn/asn64.exe
+# else
+# CC1N64 := wine ./sn/cc1n64.exe
+# ASN64 := wine ./sn/asn64.exe
+# endif
+# CC1N64_CFLAGS := -quiet -G0 -mcpu=vr4300 -mips3 -mhard-float -meb -g
 
-CROSS    := mips-linux-gnu-
-AS       := $(CROSS)as
-LD       := $(CROSS)ld
-OBJCOPY  := $(CROSS)objcopy
-STRIP    := $(CROSS)strip
+# SN_LNKS := $(addprefix $(BUILD_DIR)/, $(SN_SRCS:.c=.obj))
+# $(SN_LNKS) : $(BUILD_DIR)/%.obj : %.c | $(SRC_BUILD_DIRS)
+# 	@printf "Compiling $<\r\n"
+# 	@$(CPP) $(CPPFLAGS) $< -o $@.i
+# 	@$(CC1N64) $(CC1N64_CFLAGS) $(OPTFLAGS) $@.i -o $@.s
+# 	@$(ASN64) $(ASN64FLAGS) $@.s -o $@
 
-CC       := tools/gcc_2.7.2/$(DETECTED_OS)/gcc
-CC_HOST  := gcc
-CPP      := cpp -P
+# $(SN_OBJS) : $(BUILD_DIR)/%.o : $(BUILD_DIR)/%.obj
+# 	@printf "Running obj parser on $<\r\n"
+# 	@tools/psyq-obj-parser $< -o $@ -b -n > /dev/null
 
-PRINT := printf '
- ENDCOLOR := \033[0m
- WHITE     := \033[0m
- ENDWHITE  := $(ENDCOLOR)
- GREEN     := \033[0;32m
- ENDGREEN  := $(ENDCOLOR)
- BLUE      := \033[0;34m
- ENDBLUE   := $(ENDCOLOR)
- YELLOW    := \033[0;33m
- ENDYELLOW := $(ENDCOLOR)
- PURPLE    := \033[0;35m
- ENDPURPLE := $(ENDCOLOR)
-ENDLINE := \n'
+$(SN_OBJS) : $(BUILD_DIR)/%.o : %.c | $(SRC_BUILD_DIRS) $(SN_CC) $(SN_AS)
+	@printf "Compiling $<\r\n"
+	export COMPILER_PATH=$(SN_DIR) && $(SN_CC) $(CFLAGS) $(OPTFLAGS) $(WARNFLAGS) $(CPPFLAGS) $< -c -o $@
 
-### Compiler Options ###
+$(BUILD_DIR)/%.o : $(BUILD_DIR)/%.s
+	$(AS) $(ASFLAGS) $(CPPFLAGS) $< -o $@
 
-ASFLAGS        := -G 0 -I include -mips3 -mabi=32
-CFLAGS         := -G0 -mips3 -mgp32 -mfp32 -Wa,--vr4300mul-off -D_LANGUAGE_C 
-CPPFLAGS     := -I include -I $(BUILD_DIR)/include -I src -DF3DEX_GBI_2 -D_LANGUAGE_C
-LDFLAGS        := -T undefined_syms.txt -T undefined_funcs_auto.txt -T undefined_syms_auto.txt -T $(LD_SCRIPT) -Map $(LD_MAP) --no-check-sections
-CHECK_WARNINGS := -Wall -Wextra -Wunused-but-set-variable -Wno-format-security -Wno-unused-parameter -Wno-sign-compare -Wno-unused-variable -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -m32
-CFLAGS_CHECK   := -fsyntax-only -fsigned-char -nostdinc -fno-builtin -D CC_CHECK -D _LANGUAGE_C -std=gnu90 $(CHECK_WARNINGS)
+$(BUILD_DIR)/%.o : %.s | $(ASM_BUILD_DIRS) $(SRC_BUILD_DIRS)
+	$(AS) $(ASFLAGS) $(CPPFLAGS) $< -o $@
 
-ifneq ($(CHECK),1)
-CFLAGS_CHECK += -w
-endif
+$(BUILD_DIR)/%.o : %.bin | $(BIN_BUILD_DIR)
+	$(OBJCOPY) $(BINOFLAGS) $< $@
 
-OPTFLAGS := -O2 -g2
+$(ELF) : $(OBJS)
+	$(LD) $(LDFLAGS) -Wl,-Map,$(@:.elf=.map) -o $@
 
-### Sources ###
+$(Z64) : $(ELF)
+	$(OBJCOPY) $(Z64OFLAGS) $< $@
+	python3 tools/n64cksum.py $@
 
-# Object files
-OBJECTS := $(shell grep -E 'build.+\.o' glover.ld -o)
-DEPENDS := $(OBJECTS:=.d) 
-
-### Targets ###
-
-#build/src/libultra/os/%.o: CFLAGS := -O2 $(CFLAGSCOMMON)
-#build/src/libultra/libc/%.o: CFLAGS := -O2 $(CFLAGSCOMMON)
-#build/src/lib/%.o: CFLAGS := -O2 $(CFLAGSCOMMON)
-
-all: $(ROM)
-
--include $(DEPENDS)
+$(BUILD_DIR)/ultra/%.o: OPTFLAGS := -O3
+$(BUILD_DIR)/src/rocket/codeseg2/codeseg2_3.o: OPTFLAGS := -O3
+$(BUILD_DIR)/src/lib/%.o: WARNFLAGS := 
 
 clean:
-	$(V)rm -rf build
+	$(RMDIR) $(BUILD_ROOT)
 
-distclean: clean
-	$(V)rm -rf asm
-	$(V)rm -rf assets
-	$(V)rm -f *auto.txt
-	$(V)rm -f glover.ld
-	$(V)rm -f include/ld_addrs.h
+check: $(Z64)
+	@$(DIFF) $(BASEROM) $(Z64) && printf "OK\n"
 
-setup: distclean split
+setup:
+	rm -rf asm/ data/
+	splat split glover.yaml --modes=all
 
-split:
-	$(V)$(SPLAT)
+$(KMC_CC) $(KMC_AS) $(SN_CC) $(SN_AS) :
+	$(MAKE) -C tools/ $(@:tools/%=%)
 
-test: $(ROM)
-	$(V)$(EMULATOR) $<
-
-# Flags for individual files. TODO: move these to a common directory and make this a directory thing instead
-build/src/lib/%.c.o: OPTFLAGS = -O3 -funsigned-char
-build/src/lib/%.c.o: CFLAGS = -G0 -mips3 -mgp32 -mfp32 -D_MIPS_SZLONG=32 -D_LANGUAGE_C -DF3DEX_GBI
-build/src/lib/%.c.o: CPPFLAGS = -I include -I include/PR -I include/gcc -I $(BUILD_DIR)/include -I src -DNDEBUG -D_MIPS_SZLONG=32 -DF3DEX_GBI_2
-
-# Special flags since these functions have a mono sound patch.
-build/src/lib/2.0I/audio/synsetpan.c.o: OPTFLAGS = -O0
-build/src/lib/2.0I/audio/synstartvoiceparam.c.o: OPTFLAGS = -O0
-
-build/src/engine/math.c.o: CFLAGS = -G0 -mips3 -mgp32 -mfp32 -D_LANGUAGE_C
-
-# mul nops included in the following *.c (Maybe only one func uses --vr4300mul-off)
-build/src/3AC60.c.o: CFLAGS = -G0 -mips3 -mgp32 -mfp32 -D_LANGUAGE_C
-build/src/48D90.c.o: CFLAGS = -G0 -mips3 -mgp32 -mfp32 -D_LANGUAGE_C
-build/src/B980.c.o:  CFLAGS = -G0 -mips3 -mgp32 -mfp32 -D_LANGUAGE_C
-
-# -O3 static inlines
-build/src/7CD60.c.o: OPTFLAGS = -O3
-
-build/src/ABCD0.c.o: OPTFLAGS = -O0
-build/src/ACA90.c.o: OPTFLAGS = -O0
-build/src/ACCB0.c.o: OPTFLAGS = -O0
-build/src/ACF80.c.o: OPTFLAGS = -O0
-build/src/AD380.c.o: OPTFLAGS = -O0
-build/src/AD740.c.o: OPTFLAGS = -O0
-build/src/ADA70.c.o: OPTFLAGS = -O0
-build/src/ADBD0.c.o: OPTFLAGS = -O0
-build/src/ADF70.c.o: OPTFLAGS = -O0
-build/src/AE150.c.o: OPTFLAGS = -O0
-build/src/AE630.c.o: OPTFLAGS = -O0
-build/src/AE820.c.o: OPTFLAGS = -O0
-build/src/AED10.c.o: OPTFLAGS = -O0
-build/src/AEF30.c.o: OPTFLAGS = -O0
-build/src/AF450.c.o: OPTFLAGS = -O0
-build/src/AF6C0.c.o: OPTFLAGS = -O0
-build/src/AF960.c.o: OPTFLAGS = -O0
-build/src/AFBD0.c.o: OPTFLAGS = -O0
-build/src/AFE60.c.o: OPTFLAGS = -O0
-build/src/AFF70.c.o: OPTFLAGS = -O0
-build/src/B07B0.c.o: OPTFLAGS = -O0
-build/src/B0BA0.c.o: OPTFLAGS = -O0
-build/src/B0FC0.c.o: OPTFLAGS = -O0
-build/src/B1930.c.o: OPTFLAGS = -O0
-build/src/B1B60.c.o: OPTFLAGS = -O0
-build/src/B1DC0.c.o: OPTFLAGS = -O0
-build/src/B1FD0.c.o: OPTFLAGS = -O0
-build/src/B22E0.c.o: OPTFLAGS = -O0
-build/src/B2310.c.o: OPTFLAGS = -O0
-build/src/89EA0.c.o: OPTFLAGS = -O0
-build/src/A2080.c.o: OPTFLAGS = -O0
-build/src/A21C0.c.o: OPTFLAGS = -O0
-build/src/A3370.c.o: OPTFLAGS = -O0
-build/src/A27D0.c.o: OPTFLAGS = -O0
-build/src/AD5D0.c.o: OPTFLAGS = -O0
-build/src/AD940.c.o: OPTFLAGS = -O0
-build/src/95F40.c.o: OPTFLAGS = -O2
-
-# Compile .c files with kmc gcc (use strip to fix objects so that they can be linked with modern gnu ld) 
-$(BUILD_DIR)/src/%.c.o: src/%.c
-	@$(PRINT)$(GREEN)Compiling C file: $(ENDGREEN)$(BLUE)$<$(ENDBLUE)$(ENDLINE)
-	@mkdir -p $(shell dirname $@)
-	@$(CC_HOST) $(CFLAGS_CHECK) $(CPPFLAGS) -MMD -MP -MT $@ -MF $@.d $<
-	$(V)export COMPILER_PATH=tools/gcc_2.7.2/$(DETECTED_OS) && $(CC) $(OPTFLAGS) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
-	@$(STRIP) $@ -N dummy-symbol-name
-
-# Assemble .s files with modern gnu as
-$(BUILD_DIR)/asm/%.s.o: asm/%.s
-	@$(PRINT)$(GREEN)Assembling asm file: $(ENDGREEN)$(BLUE)$<$(ENDBLUE)$(ENDLINE)
-	@mkdir -p $(shell dirname $@)
-	$(V)$(AS) $(ASFLAGS) -o $@ $<
-
-# Create .o files from .bin files.
-$(BUILD_DIR)/%.bin.o: %.bin
-	@$(PRINT)$(GREEN)objcopying binary file: $(ENDGREEN)$(BLUE)$<$(ENDBLUE)$(ENDLINE)
-	@mkdir -p $(shell dirname $@)
-	$(V)$(LD) -r -b binary -o $@ $<
-
-# Link the .o files into the .elf
-$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
-	@$(PRINT)$(GREEN)Linking elf file: $(ENDGREEN)$(BLUE)$@$(ENDBLUE)$(ENDLINE)
-	$(V)$(LD) $(LDFLAGS) -o $@
-
-# Convert the .elf to the final rom
-$(ROM): $(BUILD_DIR)/$(TARGET).elf
-	@$(PRINT)$(GREEN)Creating z64: $(ENDGREEN)$(BLUE)$@$(ENDBLUE)$(ENDLINE)
-	$(V)$(OBJCOPY) $< $@ -O binary
-	$(V)$(N64CKSUM) $@
-ifeq ($(COMPARE),1)
-	@$(DIFF) $(BASEROM) $(ROM) && printf "OK\n" || (echo 'The build succeeded, but did not match the base ROM. This is expected if you are making changes to the game. To skip this check, use "make COMPARE=0".' && false)
-endif
-
-### Make Settings ###
-
-.PHONY: all clean distclean test setup split
-
-# Remove built-in implicit rules to improve performance
+.SUFFIXES:
 MAKEFLAGS += --no-builtin-rules
 
-# Print target for debugging
+.PHONY: all clean check setup
+
 print-% : ; $(info $* is a $(flavor $*) variable set to [$($*)]) @true

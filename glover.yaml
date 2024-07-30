@@ -1,9 +1,9 @@
 name: Glover (North America)
 sha1: 270be17b3c8da9b88a7b99c2a545b0bce16837f4
 options:
-  basename: glover
+  basename: NSUE
   target_path: baserom.us.z64
-  elf_path: build/glover.elf
+  elf_path: build/NSUE.elf
   base_path: .
   platform: n64
   compiler: GCC
@@ -13,7 +13,7 @@ options:
   # build_path: build
   # create_asm_dependencies: True
 
-  ld_script_path: glover.ld
+  ld_script_path: NSUE.ld
   ld_dependencies: True
 
   find_file_boundaries: True
@@ -29,7 +29,7 @@ options:
 
   asm_inc_header: ""
 
-  section_order: [".data", ".text", ".rodata", ".bss"]
+  section_order: [".rodata", ".text", ".data", ".bss"]
   # auto_all_sections: [".data", ".rodata", ".bss"]
 
   symbol_addrs_path:
@@ -74,8 +74,8 @@ segments:
     subsegments:
       - [0x1040, data]
       - [0xD920, c] #8010C920
-      - [0xE860, hasm] #lots of hand asm here
-      - [0xD51C0, rodata]
+      - [0xE860, asm] #lots of hand asm here
+      - [0xD51C0, rodata] #this is not all rodata
       - { start: 0xF6680, type: bss, vram: 0x801F5680 }
 
   - type: bin
