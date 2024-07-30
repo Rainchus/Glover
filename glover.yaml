@@ -10,7 +10,7 @@ options:
 
   # asm_path: asm
   # src_path: src
-  # build_path: build
+  build_path: build/us
   # create_asm_dependencies: True
 
   ld_script_path: NSUE.ld
@@ -19,7 +19,7 @@ options:
   find_file_boundaries: True
   header_encoding: ASCII
 
-  # o_as_suffix: True
+  o_as_suffix: True
   use_legacy_include_asm: False
   mips_abi_float_regs: o32
 
@@ -55,8 +55,12 @@ segments:
     start: 0x0
 
   - name: boot
-    type: bin
-    start: 0x40
+    type: code
+    start: 0x0040
+    vram: 0xA4000040
+    subsegments:
+    - [0x0040, bin, boot]
+    - [0x0B70, bin, boot2]
 
   - name: entry
     type: code
@@ -80,5 +84,4 @@ segments:
 
   - type: bin
     start: 0xF6680
-    follows_vram: main
   - [0x800000]
