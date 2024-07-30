@@ -15,11 +15,11 @@ options:
 
   ld_script_path: NSUE.ld
   ld_dependencies: True
-
+  asset_path: bin
   find_file_boundaries: True
   header_encoding: ASCII
 
-  o_as_suffix: True
+  o_as_suffix: yes
   use_legacy_include_asm: False
   mips_abi_float_regs: o32
 
