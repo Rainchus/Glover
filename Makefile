@@ -32,7 +32,7 @@ AS_OBJS := $(addprefix $(BUILD_DIR)/, $(AS_SRCS:.s=.o))
 BINS := $(wildcard $(BIN_DIR)/*.bin)
 BIN_OBJS := $(addprefix $(BUILD_DIR)/, $(BINS:.bin=.o))
 OBJS := $(C_OBJS) $(AS_OBJS) $(BIN_OBJS)
-LD_SCRIPT := NSUE.ld
+LD_SCRIPT := NGVE.ld
 Z64 := $(BUILD_DIR)/$(TARGET).z64
 ELF := $(Z64:.z64=.elf)
 
