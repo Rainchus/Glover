@@ -155,6 +155,7 @@ check: $(Z64)
 setup:
 	rm -rf asm/ data/
 	splat split glover.yaml --modes=all
+	python3 ./tools/replace_garbage_instructions.py
 
 $(KMC_CC) $(KMC_AS) $(SN_CC) $(SN_AS) :
 	$(MAKE) -C tools/ $(@:tools/%=%)

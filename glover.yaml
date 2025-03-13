@@ -16,7 +16,6 @@ options:
   ld_script_path: NGVE.ld
   ld_dependencies: True
   asset_path: bin
-  find_file_boundaries: True
   header_encoding: ASCII
 
   o_as_suffix: yes
@@ -24,13 +23,17 @@ options:
   #mips_abi_float_regs: o32
 
   asm_function_macro: glabel
-  asm_jtbl_label_macro: jlabel
+  # asm_jtbl_label_macro: jlabel
   asm_data_macro: dlabel
-
+  generated_s_preamble: .set fp=64
   asm_inc_header: ""
 
-  section_order: [".data", ".text", ".rodata", ".bss"]
-  # auto_all_sections: [".data", ".rodata", ".bss"]
+  find_file_boundaries: no
+  section_order:
+  - .rodata
+  - .text
+  - .data
+  - .bss
 
   symbol_addrs_path:
     - symbol_addrs.txt
@@ -74,12 +77,55 @@ segments:
     start: 0x1040
     vram: 0x80100040
     follows_vram: entry
-    bss_size: 0xBB690
     subsegments:
-      - [0x1040, data]
-      - [0xD920, c] #8010C920
+      - [0x1040, rodata] #this is actually rodata
+      - [0xD920, asm] #8010C920
       - [0xE860, asm] #lots of hand asm here
-      - [0xD51C0, rodata]
+      - [0x11520, asm] #lots of hand asm here
+      - [0x13830, asm]
+      - [0x15740, asm]
+      - [0x18020, asm]
+      - [0x19B70, asm]
+      - [0x1BB30, asm]
+      - [0x1D720, bin]
+  #this is not a real split, but im unsure how to put asm after a bin segment
+  - name: main2
+    type: code
+    start: 0x1D810
+    vram: 0x8011C810
+    follows_vram: main
+    subsegments:
+      - [0x1D810, asm]
+      - [0x2BCC0, asm]
+      - [0x2D5E0, asm]
+      - [0x33940, asm]
+      - [0x34900, asm]
+      - [0x40BC0, asm]
+      - [0x50400, asm]
+      - [0x56B90, asm]
+      - [0x5D350, asm]
+      - [0x63BE0, asm]
+      - [0x8B9D0, asm]
+      - [0x8F660, asm]
+      - [0x92120, asm]
+      - [0xA7820, asm]
+      - [0xB8B40, asm]
+      - [0xBD710, bin, gspFast3DTextStart]
+      - [0xBF9E0, bin, aspMain] #0xE20 in size
+
+  #this is not a real split, but im unsure how to put asm after a bin segment
+  - name: main3
+    type: code
+    start: 0xC0800
+    vram: 0x801BF800
+    follows_vram: main2
+    bss_size: 0xBB690
+    subsegments:      
+      - [0xC0800, asm]
+      - [0xD4B40, asm]
+      - [0xD51D0, data]
+      - [0xF4E00, bin, aspMainData] #0x2C0 in size
+      - [0xF50C0, data]
       - { start: 0xF6680, type: bss, vram: 0x801F5680 }
 
   - type: bin
